@@ -244,7 +244,10 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
 
     # --- Create a fresh DeepSeek chat session for this request ---
     try:
-        log.info("Creating DeepSeek session  model=%s  stream=%s", body.model, body.stream)
+        log.info(
+            "Request  model=%s  stream=%s  thinking=%s  search=%s",
+            body.model, body.stream, thinking_enabled, search_enabled,
+        )
         chat_session_id: str = await asyncio.get_event_loop().run_in_executor(
             None, api.create_chat_session
         )

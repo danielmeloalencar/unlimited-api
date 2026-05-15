@@ -221,8 +221,10 @@ async def stream_completion(
             continue
 
         if ctype == "thinking":
-            # Emit as reasoning_content delta — kept separate from content
-            yield _make_chunk(reasoning_content=content)
+            # Only emit reasoning_content if thinking was explicitly enabled.
+            # Guards against edge cases where the API sends think chunks anyway.
+            if thinking_enabled:
+                yield _make_chunk(reasoning_content=content)
         elif ctype == "text":
             # Emit as normal content delta
             yield _make_chunk(content=content)
@@ -270,7 +272,9 @@ def collect_completion(
         ctype = chunk.get("type")
         content = chunk.get("content", "")
         if ctype == "thinking" and content:
-            thinking_parts.append(content)
+            # Only accumulate reasoning if thinking was enabled.
+            if thinking_enabled:
+                thinking_parts.append(content)
         elif ctype == "text" and content:
             text_parts.append(content)
 
