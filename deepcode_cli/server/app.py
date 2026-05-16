@@ -276,8 +276,9 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
                 # Best-effort session cleanup
                 try:
                     await asyncio.get_event_loop().run_in_executor(
-                        None, api.delete_chat_session, chat_session_id
-                    )
+                         None, api.delete_chat_session, chat_session_id
+                     )
+                    pass
                 except Exception:
                     pass
 
