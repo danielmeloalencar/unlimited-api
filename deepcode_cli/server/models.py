@@ -18,10 +18,23 @@ from pydantic import BaseModel, Field
 # Request
 # ---------------------------------------------------------------------------
 
+class ToolFunction(BaseModel):
+    name: str
+    arguments: str  # JSON-encoded string
+
+
+class ToolCall(BaseModel):
+    id: str
+    type: Literal["function"] = "function"
+    function: ToolFunction
+
+
 class ChatMessage(BaseModel):
     role: str  # accept any role string (system, user, assistant, tool, developer, etc.)
     content: Optional[Union[str, List[Any]]] = None  # content can be str or array (vision)
     name: Optional[str] = None
+    tool_calls: Optional[List["ToolCall"]] = None
+    tool_call_id: Optional[str] = None
 
     class Config:
         extra = "allow"
@@ -38,6 +51,8 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: Optional[float] = None
     stop: Optional[Union[str, List[str]]] = None
     user: Optional[str] = None
+    tools: Optional[List[Any]] = None
+    tool_choice: Optional[Any] = None
     # DeepCode extensions (passed via extra fields or dedicated fields)
     thinking: Optional[bool] = Field(default=None, description="Enable DeepSeek thinking mode")
     search: Optional[bool] = Field(default=None, description="Enable DeepSeek web search")
@@ -60,6 +75,7 @@ class ChatChoiceMessage(BaseModel):
     role: Literal["assistant"] = "assistant"
     content: Optional[str] = None
     reasoning_content: Optional[str] = None  # DeepSeek-style thinking field
+    tool_calls: Optional[List["ToolCall"]] = None
 
 
 class ChatChoice(BaseModel):
@@ -89,10 +105,19 @@ class ChatCompletionResponse(BaseModel):
 # Streaming response (SSE chunks)
 # ---------------------------------------------------------------------------
 
+class ToolCallDelta(BaseModel):
+    """Partial tool call used inside streaming delta chunks."""
+    index: int
+    id: Optional[str] = None
+    type: Optional[Literal["function"]] = None
+    function: Optional[Dict[str, Any]] = None
+
+
 class DeltaContent(BaseModel):
     role: Optional[Literal["assistant"]] = None
     content: Optional[str] = None
     reasoning_content: Optional[str] = None  # DeepSeek-style thinking field
+    tool_calls: Optional[List[ToolCallDelta]] = None
 
     def model_dump_json(self, **kwargs) -> str:  # type: ignore[override]
         # Omit None fields to keep chunks lean
@@ -104,6 +129,18 @@ class DeltaContent(BaseModel):
             d["content"] = self.content
         if self.reasoning_content is not None:
             d["reasoning_content"] = self.reasoning_content
+        if self.tool_calls is not None:
+            tc_list = []
+            for tc in self.tool_calls:
+                tc_dict: Dict[str, Any] = {"index": tc.index}
+                if tc.id is not None:
+                    tc_dict["id"] = tc.id
+                if tc.type is not None:
+                    tc_dict["type"] = tc.type
+                if tc.function is not None:
+                    tc_dict["function"] = tc.function
+                tc_list.append(tc_dict)
+            d["tool_calls"] = tc_list
         return json.dumps(d)
 
 

@@ -218,8 +218,8 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
     if not body.messages:
         raise HTTPException(status_code=400, detail="messages array cannot be empty")
 
-    # --- Convert messages to prompt ---
-    prompt = messages_to_prompt(body.messages)
+    # --- Convert messages to prompt (with optional tool injection) ---
+    prompt = messages_to_prompt(body.messages, tools=body.tools, tool_choice=body.tool_choice)
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="All messages have empty content")
 
@@ -269,6 +269,7 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
                     model_name=body.model,
                     thinking_enabled=thinking_enabled,
                     search_enabled=search_enabled,
+                    tools=body.tools,
                 ):
                     yield chunk
             finally:
@@ -302,6 +303,7 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
                 model_name=body.model,
                 thinking_enabled=thinking_enabled,
                 search_enabled=search_enabled,
+                tools=body.tools,
             ),
         )
     except Exception as exc:
@@ -310,9 +312,10 @@ async def chat_completions(request: Request, body: ChatCompletionRequest):
     finally:
         # Clean up session regardless of outcome
         try:
-            await asyncio.get_event_loop().run_in_executor(
-                None, api.delete_chat_session, chat_session_id
-            )
+            # await asyncio.get_event_loop().run_in_executor(
+            #     None, api.delete_chat_session, chat_session_id
+            # )
+            pass
         except Exception:
             pass
 
